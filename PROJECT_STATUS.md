@@ -11,11 +11,15 @@ service and it does not claim to update model weights.
 - Group packets under a user-created experiment journal.
 - Review two outputs in the annotation studio and save a preference decision.
 - Export raw packets or human-reviewed, non-simulator preference pairs as JSONL.
+- Use the local Python FastAPI engine for Ollama runs with explicit engine provenance.
+- Run a small CPU-friendly open Transformers model (`SmolLM2 135M`) through the engine.
 
 ## Evidence checked locally on 2026-08-31
 
 - Ollama was reachable and listed three installed Qwen3 4B local models.
 - A real Qwen3 4B completion was returned through the application in about 8 seconds.
+- A real SmolLM2 135M Transformers completion was returned through the Python
+  engine and then through the web packet route.
 - A human preference pair made from two real local completions exported as
   `synth.preference.v1` and did not include simulator output.
 
@@ -26,4 +30,5 @@ service and it does not claim to update model weights.
 - The current database is local SQLite. It is deliberately excluded from Git.
 - Search, browser, and tool-call connectors are planned packet types; they are
   not implemented as live integrations in V1.
-- A Python / Hugging Face sidecar is next, not claimed as complete.
+- The installed PyTorch runtime is CPU-only. Larger Transformers experiments
+  should use Ollama or wait for a GPU-capable setup.

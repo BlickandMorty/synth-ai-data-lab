@@ -26,6 +26,7 @@ import Link from 'next/link';
 
 export default function DataLabPage() {
   const [selectedModel, setSelectedModel] = useState(AVAILABLE_MODELS[0].id);
+  const [executionMode, setExecutionMode] = useState<'direct' | 'python'>('direct');
   const [prompt, setPrompt] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('You are an expert scientific AI evaluator and reasoning model.');
   const [temperature, setTemperature] = useState(0.7);
@@ -74,6 +75,7 @@ export default function DataLabPage() {
           systemPrompt: showAdvanced ? systemPrompt : undefined,
           temperature,
           experimentId: experimentId || undefined,
+          executionMode,
         }),
       });
 
@@ -155,6 +157,18 @@ export default function DataLabPage() {
                     <p className="text-[11px] text-muted-foreground line-clamp-2">{m.description}</p>
                   </button>
                 ))}
+              </div>
+              <div>
+                <label className="text-xs font-mono text-muted-foreground block mb-1">Execution path</label>
+                <select
+                  value={executionMode}
+                  onChange={(e) => setExecutionMode(e.target.value as 'direct' | 'python')}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs"
+                >
+                  <option value="direct">Direct Ollama — simplest local run</option>
+                  <option value="python">Python research engine — reproducible engine provenance</option>
+                </select>
+                <p className="text-[10px] text-muted-foreground mt-1">The Python route uses the local FastAPI engine on port 8020. Both stay on this machine.</p>
               </div>
               <div>
                 <label className="text-xs font-mono text-muted-foreground block mb-1">Experiment journal (optional)</label>

@@ -4,5 +4,7 @@ node_modules/
 synth.db
 synth.db-*
 .env.local
+engine/.venv/
+engine/__pycache__/
+engine/app/__pycache__/
 *.tsbuildinfo
-

@@ -25,6 +25,27 @@ The lab is for synthetic, public, or explicitly authorized material. Do not add 
 
 The interface is Next.js/React/TypeScript because it needs a practical multi-page application, local SQLite, tables, review tools, and a clean deployment story. Python belongs beside it as the research engine: Hugging Face Transformers, dataset export, evaluation scripts, and later fine-tuning. Rust can power focused performance-sensitive local components later, but it should not slow down the first real workflow.
 
+## Local setup
+
+One time on this machine, the complete web and Python research stack is set up with:
+
+```powershell
+cd C:\Users\jojo\Projects\SYNTH
+.\scripts\setup-synth.ps1
+```
+
+Start both local services with:
+
+```powershell
+.\scripts\start-synth.ps1
+```
+
+That opens the web lab at `http://127.0.0.1:3018` and the Python engine API reference at `http://127.0.0.1:8020/docs`.
+
+- Direct Ollama: installed Qwen3 4B variants.
+- Python engine + Ollama: the same Qwen model with engine provenance.
+- Python Transformers: `HuggingFaceTB/SmolLM2-135M-Instruct`, a CPU-friendly open model downloaded on first use. It is useful for small controlled tests, not a replacement for a larger GPU model.
+
 ## UAS inside SYNTH
 
 Unified Address Space is not a separate app here. It is the packet spine.
@@ -49,8 +70,8 @@ This lets a prompt, model output, annotation, search query, or future transforme
 ## Next milestones
 
 1. Packet export to JSONL for supervised fine-tuning and preference data.
-2. A Python FastAPI sidecar for direct Hugging Face model and experiment execution.
-3. Run comparison mode: same prompt, multiple local models, one shared packet family.
+2. Run comparison mode: same prompt, multiple local models, one shared packet family.
+3. A review queue with assigned annotation tasks and packet-level disagreement summaries.
 4. Published experiment cards that expose method and limits but keep personal raw data local.
 5. A minimal Windows companion only after the web workflow proves what native functionality is actually worth building.
 

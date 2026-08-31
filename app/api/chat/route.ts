@@ -4,54 +4,67 @@ import { logPacket } from '@/lib/packets/logger';
 export async function POST(req: Request) {
   const startTime = Date.now();
   try {
-    const { prompt, model = 'ollama:llama3.2', experimentId, systemPrompt, temperature = 0.7 } = await req.json();
+    const { prompt, model = 'ollama:llama3.2', experimentId, systemPrompt, temperature = 0.7, executionMode = 'direct' } = await req.json();
 
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json({ success: false, error: 'Prompt is required' }, { status: 400 });
     }
 
     let outputText = '';
-    let provider: 'ollama' | 'simulator' | 'openai' | 'anthropic' = 'simulator';
+    let provider: 'ollama' | 'transformers' | 'simulator' | 'openai' | 'anthropic' = 'simulator';
+    let executionEngine = 'synth-simulator-circuit';
+    let providerMetrics: { promptTokens?: number; completionTokens?: number; totalTokens?: number; totalLatencyMs?: number } = {};
     const [providerType, ...modelParts] = model.split(':');
     const modelName = modelParts.join(':');
 
-    if (providerType === 'ollama') {
-      provider = 'ollama';
+    if (providerType === 'ollama' || providerType === 'transformers') {
+      provider = providerType;
       try {
-        const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
-        const ollamaRes = await fetch(`${ollamaBaseUrl}/api/generate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: modelName || 'llama3.2',
-            prompt: prompt,
-            system: systemPrompt,
-            stream: false,
-            options: { temperature },
-          }),
-          signal: AbortSignal.timeout(60000),
-        });
-
-        if (ollamaRes.ok) {
+        if (executionMode === 'python') {
+          const engineUrl = process.env.SYNTH_ENGINE_URL || 'http://127.0.0.1:8020';
+          const engineRes = await fetch(`${engineUrl}/v1/run`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: modelName || 'llama3.2', provider: providerType, prompt, system_prompt: systemPrompt, temperature }),
+            signal: AbortSignal.timeout(90000),
+          });
+          if (!engineRes.ok) throw new Error(`Python engine returned ${engineRes.status}`);
+          const engineData = await engineRes.json();
+          outputText = engineData.response || '';
+          executionEngine = engineData.provenance?.engine || 'synth-python-fastapi';
+          providerMetrics = {
+            promptTokens: engineData.metrics?.prompt_tokens,
+            completionTokens: engineData.metrics?.completion_tokens,
+            totalTokens: engineData.metrics?.total_tokens,
+            totalLatencyMs: engineData.metrics?.total_latency_ms,
+          };
+        } else if (providerType === 'ollama') {
+          const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
+          const ollamaRes = await fetch(`${ollamaBaseUrl}/api/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: modelName || 'llama3.2', prompt, system: systemPrompt, stream: false, options: { temperature } }),
+            signal: AbortSignal.timeout(60000),
+          });
+          if (!ollamaRes.ok) throw new Error(`Ollama returned ${ollamaRes.status}`);
           const ollamaData = await ollamaRes.json();
           outputText = ollamaData.response || '';
+          executionEngine = 'ollama-native';
         } else {
-          outputText = generateSimulatedResponse(prompt, model);
-          provider = 'simulator';
+          throw new Error('Transformers models require the Python research engine');
         }
-      } catch {
-        // Fallback to simulator if Ollama daemon is offline
-        outputText = generateSimulatedResponse(prompt, model);
+      } catch (error) {
+        outputText = generateSimulatedResponse(prompt, model, executionMode === 'python' ? 'The Python research engine was unavailable.' : 'No local model response was available.');
         provider = 'simulator';
       }
     } else {
-      outputText = generateSimulatedResponse(prompt, model);
+      outputText = generateSimulatedResponse(prompt, model, 'That provider is not configured in this local-first build.');
       provider = 'simulator';
     }
 
     const totalLatencyMs = Date.now() - startTime;
-    const promptTokens = Math.ceil(prompt.length / 4);
-    const completionTokens = Math.ceil(outputText.length / 4);
+    const promptTokens = providerMetrics.promptTokens ?? Math.ceil(prompt.length / 4);
+    const completionTokens = providerMetrics.completionTokens ?? Math.ceil(outputText.length / 4);
 
     // Record the user input and resulting completion separately. The completion
     // points back to the exact prompt packet, so a later review can replay the
@@ -67,6 +80,7 @@ export async function POST(req: Request) {
         systemPrompt: systemPrompt || undefined,
         temperature,
         requestedProvider: providerType || 'simulator',
+        executionMode,
       },
       tokens: { promptTokens, completionTokens: 0, totalTokens: promptTokens },
       latency: { totalLatencyMs: 0 },
@@ -86,17 +100,18 @@ export async function POST(req: Request) {
       metadata: {
         systemPrompt: systemPrompt || undefined,
         temperature,
-        engine: provider === 'ollama' ? 'ollama-native' : 'synth-simulator-circuit',
+        engine: executionEngine,
+        executionMode,
         syntheticOutput: provider === 'simulator',
         promptPacketId: promptPacket.id,
       },
       tokens: {
         promptTokens,
         completionTokens,
-        totalTokens: promptTokens + completionTokens,
+        totalTokens: providerMetrics.totalTokens ?? promptTokens + completionTokens,
       },
       latency: {
-        totalLatencyMs,
+        totalLatencyMs: providerMetrics.totalLatencyMs ?? totalLatencyMs,
         timeToFirstTokenMs: Math.min(120, Math.floor(totalLatencyMs * 0.2)),
         tokensPerSec: parseFloat(((completionTokens / (totalLatencyMs / 1000)) || 25).toFixed(1)),
       },
@@ -113,6 +128,6 @@ export async function POST(req: Request) {
   }
 }
 
-function generateSimulatedResponse(prompt: string, model: string): string {
-  return `### SYNTH simulator output\n\nNo local model response was available, so SYNTH created this clearly marked placeholder packet for interface and annotation testing. It is not a model answer and should not be scored as evidence.\n\n**Requested model:** ${model}\n**Captured prompt:** ${prompt}\n\nStart Ollama and choose an installed model to create a real local inference packet.`;
+function generateSimulatedResponse(prompt: string, model: string, reason: string): string {
+  return `### SYNTH simulator output\n\n${reason} SYNTH created this clearly marked placeholder packet for interface and annotation testing. It is not a model answer and should not be scored as evidence.\n\n**Requested model:** ${model}\n**Captured prompt:** ${prompt}\n\nStart Ollama or the Python engine and choose an installed model to create a real local inference packet.`;
 }

@@ -1,7 +1,7 @@
 export interface ModelOption {
   id: string;
   name: string;
-  provider: 'ollama' | 'openai' | 'anthropic' | 'google' | 'simulator';
+  provider: 'ollama' | 'openai' | 'anthropic' | 'google' | 'transformers' | 'simulator';
   description: string;
   contextWindow: number;
   isLocal: boolean;
@@ -9,6 +9,15 @@ export interface ModelOption {
 }
 
 export const AVAILABLE_MODELS: ModelOption[] = [
+  {
+    id: 'transformers:HuggingFaceTB/SmolLM2-135M-Instruct',
+    name: 'SmolLM2 135M (Transformers)',
+    provider: 'transformers',
+    description: 'Small open model through SYNTH’s local Python engine. Downloads once on first use.',
+    contextWindow: 8192,
+    isLocal: true,
+    recommendedFor: 'CPU-friendly Transformers experiments and engine provenance checks',
+  },
   {
     id: 'ollama:qwen3:4b',
     name: 'Qwen3 4B',
@@ -40,7 +49,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     id: 'simulator:synth-transformer',
     name: 'SYNTH Toy Transformer (Local Simulator)',
     provider: 'simulator',
-    description: 'Zero-latency internal simulation engine with induction head and reasoning tracers.',
+    description: 'Clearly labeled placeholder output for interface and annotation testing only.',
     contextWindow: 8192,
     isLocal: true,
     recommendedFor: 'Instant development, UI testing & test harness verification',

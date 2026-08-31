@@ -1,14 +1,43 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Cpu, Database, Settings2, TriangleAlert } from 'lucide-react';
+import { CheckCircle2, Cpu, Database, FlaskConical, Settings2, TriangleAlert } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-type Health = { ollama: { running: boolean; models: string[] }; storage: string; simulatorAvailable: boolean };
+type Health = {
+  ollama: { running: boolean; models: string[] };
+  storage: string;
+  simulatorAvailable: boolean;
+  engine?: { running: boolean; transformers?: { transformers_installed: boolean; torch_installed: boolean } };
+};
 
 export default function SettingsPage() {
   const [health, setHealth] = useState<Health | null>(null);
   useEffect(() => { fetch('/api/health').then((res) => res.json()).then(setHealth).catch(() => setHealth(null)); }, []);
-  return <div className="space-y-6 animate-in fade-in duration-500"><div className="border-b border-border/40 pb-6"><div className="flex items-center gap-2 text-xs font-mono text-[#C4956A] mb-2 uppercase tracking-widest"><Settings2 className="w-3.5 h-3.5" /> Local-first configuration</div><h1 className="text-3xl text-foreground font-bold tracking-tight">MODEL &amp; SYSTEM SETTINGS</h1><p className="text-muted-foreground text-sm mt-2 max-w-3xl">SYNTH uses local SQLite for the packet ledger. Ollama is optional: if it is not running, the lab creates an explicitly labeled simulator packet instead of claiming a model response.</p></div><div className="grid grid-cols-1 md:grid-cols-2 gap-5"><section className="rounded-xl border border-border/60 bg-card/50 p-5 space-y-3"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><Cpu className="w-4 h-4 text-[#C4956A]"/><h2 className="text-sm font-semibold">Ollama local models</h2></div>{health ? <Badge variant={health.ollama.running ? 'amber' : 'purple'} className="font-mono">{health.ollama.running ? 'connected' : 'not running'}</Badge> : <Badge variant="purple">checking</Badge>}</div>{health?.ollama.running ? <div className="space-y-2"><p className="text-xs text-muted-foreground">Installed models</p>{health.ollama.models.map((model) => <p key={model} className="rounded-md bg-secondary/70 p-2 text-xs font-mono">{model}</p>)}</div> : <p className="text-xs text-muted-foreground">Start the Ollama desktop app or service, then refresh this page. No cloud key is required for local runs.</p>}</section><section className="rounded-xl border border-border/60 bg-card/50 p-5 space-y-3"><div className="flex items-center gap-2"><Database className="w-4 h-4 text-[#C4956A]"/><h2 className="text-sm font-semibold">Packet storage and export</h2></div><p className="text-xs text-muted-foreground">{health?.storage || 'local-sqlite'} ledger. Packets stay on this machine unless you export them.</p><div className="flex flex-wrap gap-2"><a href="/api/export?format=packets"><Button variant="outline" size="sm" className="text-xs">Export packets JSONL</Button></a><a href="/api/export?format=preferences"><Button variant="outline" size="sm" className="text-xs">Export reviewed pairs JSONL</Button></a></div><div className="flex items-center gap-2 text-[11px] text-muted-foreground"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500"/>UAS address and integrity digest are generated at write time.</div></section></div><div className="rounded-xl border border-[#C4956A]/25 bg-[#C4956A]/5 p-5 flex gap-3"><TriangleAlert className="w-5 h-5 text-[#C4956A] shrink-0"/><div><h2 className="text-sm font-semibold">Data boundary</h2><p className="text-xs text-muted-foreground mt-1">Do not put secrets, real client data, classified material, health records, or sensitive operational information into a test packet. The first version is for your own synthetic, public, or explicitly authorized material.</p></div></div></div>;
+
+  return <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="border-b border-border/40 pb-6">
+      <div className="flex items-center gap-2 text-xs font-mono text-[#C4956A] mb-2 uppercase tracking-widest"><Settings2 className="w-3.5 h-3.5" /> Local-first configuration</div>
+      <h1 className="text-3xl text-foreground font-bold tracking-tight">MODEL &amp; SYSTEM SETTINGS</h1>
+      <p className="text-muted-foreground text-sm mt-2 max-w-3xl">SYNTH uses local SQLite for the packet ledger. Real runs stay local through Ollama or the optional Python engine; simulator packets are always marked and excluded from preference exports.</p>
+    </div>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <section className="rounded-xl border border-border/60 bg-card/50 p-5 space-y-3">
+        <div className="flex items-center justify-between"><div className="flex items-center gap-2"><Cpu className="w-4 h-4 text-[#C4956A]"/><h2 className="text-sm font-semibold">Ollama local models</h2></div>{health ? <Badge variant={health.ollama.running ? 'amber' : 'purple'} className="font-mono">{health.ollama.running ? 'connected' : 'not running'}</Badge> : <Badge variant="purple">checking</Badge>}</div>
+        {health?.ollama.running ? <div className="space-y-2"><p className="text-xs text-muted-foreground">Installed models</p>{health.ollama.models.map((model) => <p key={model} className="rounded-md bg-secondary/70 p-2 text-xs font-mono">{model}</p>)}</div> : <p className="text-xs text-muted-foreground">Start the Ollama desktop app or service, then refresh this page. No cloud key is required for local runs.</p>}
+      </section>
+      <section className="rounded-xl border border-border/60 bg-card/50 p-5 space-y-3">
+        <div className="flex items-center justify-between"><div className="flex items-center gap-2"><FlaskConical className="w-4 h-4 text-[#C4956A]"/><h2 className="text-sm font-semibold">Python research engine</h2></div><Badge variant={health?.engine?.running ? 'amber' : 'purple'} className="font-mono">{health?.engine?.running ? 'ready' : 'not running'}</Badge></div>
+        {health?.engine?.running ? <div className="space-y-2 text-xs text-muted-foreground"><p>FastAPI engine is available at <span className="font-mono">127.0.0.1:8020</span>.</p><p>Transformers: {health.engine.transformers?.transformers_installed ? 'installed' : 'not installed'} · Torch: {health.engine.transformers?.torch_installed ? 'installed' : 'not installed'}</p><p className="text-[11px]">Use the Python path in the Lab when you want engine provenance on a run.</p></div> : <p className="text-xs text-muted-foreground">Run <span className="font-mono">scripts\\start-synth.ps1</span> to start the local web lab and engine together.</p>}
+      </section>
+      <section className="rounded-xl border border-border/60 bg-card/50 p-5 space-y-3">
+        <div className="flex items-center gap-2"><Database className="w-4 h-4 text-[#C4956A]"/><h2 className="text-sm font-semibold">Packet storage and export</h2></div>
+        <p className="text-xs text-muted-foreground">{health?.storage || 'local-sqlite'} ledger. Packets stay on this machine unless you export them.</p>
+        <div className="flex flex-wrap gap-2"><a href="/api/export?format=packets"><Button variant="outline" size="sm" className="text-xs">Export packets JSONL</Button></a><a href="/api/export?format=preferences"><Button variant="outline" size="sm" className="text-xs">Export reviewed pairs JSONL</Button></a></div>
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500"/>UAS address and integrity digest are generated at write time.</div>
+      </section>
+    </div>
+    <div className="rounded-xl border border-[#C4956A]/25 bg-[#C4956A]/5 p-5 flex gap-3"><TriangleAlert className="w-5 h-5 text-[#C4956A] shrink-0"/><div><h2 className="text-sm font-semibold">Data boundary</h2><p className="text-xs text-muted-foreground mt-1">Do not put secrets, real client data, classified material, health records, or sensitive operational information into a test packet. The first version is for your own synthetic, public, or explicitly authorized material.</p></div></div>
+  </div>;
 }
