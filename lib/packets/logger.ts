@@ -342,6 +342,28 @@ export function getDatasetSummary() {
   };
 }
 
+export function getExperimentEvaluationSummary(experimentId: string) {
+  const experimentPackets = getPacketsForExperiment(experimentId, 10000);
+  const packetIds = new Set(experimentPackets.map((packet) => packet.id));
+  const related = db.select().from(annotations).all().filter((row) => packetIds.has(row.packetId));
+  const rubricNames: Array<keyof PacketAnnotation['rubricScores']> = ['factualAccuracy', 'instructionFollowing', 'nuanceAndDepth', 'conciseness', 'safetyAndRobustness'];
+  const averages = Object.fromEntries(rubricNames.map((name) => {
+    const values = related.map((row) => safeParse(row.rubricScores)?.[name]).filter((value): value is number => typeof value === 'number');
+    return [name, values.length ? Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(2)) : null];
+  }));
+  const preferences = related.reduce<Record<string, number>>((counts, row) => {
+    const key = row.preference || 'unranked';
+    counts[key] = (counts[key] || 0) + 1;
+    return counts;
+  }, {});
+  return {
+    annotations: related.length,
+    preferences,
+    rubricAverages: averages,
+    note: 'Averages summarize local reviewer scores; they are not an objective measure of model capability.',
+  };
+}
+
 export function exportDatasetManifest() {
   const packetJsonl = exportPacketsAsJsonl();
   const preferenceJsonl = exportPreferencePairsAsJsonl();
@@ -359,118 +381,6 @@ export function exportDatasetManifest() {
       'Preference exports require matching real completion packets and human review.',
     ],
   };
-}
-
-export function seedDemoDataIfEmpty() {
-  const existingExp = db.select().from(experiments).all();
-  if (existingExp.length > 0) return;
-
-  const now = Date.now();
-  const demoExperiments: Experiment[] = [
-    {
-      id: 'exp_mech_interp_01',
-      title: 'Mechanistic Induction Heads & Attention Routing',
-      description: 'Isolating induction heads in 2-layer attention-only toy transformers and measuring indirect effect of circuit ablation on multi-token sequence continuation.',
-      category: 'interpretability',
-      status: 'active',
-      modelTarget: 'toy-transformer-2l',
-      runCount: 4,
-      packetCount: 18,
-      createdAt: now - 86400000 * 3,
-      updatedAt: now - 3600000,
-    },
-    {
-      id: 'exp_bioactivity_curation',
-      title: 'Assay Kinetics & Cheng-Prusoff IC50/Ki Normalization',
-      description: 'Validating enzyme inhibition curves, target binding affinity conversions (Ki = IC50 / (1 + [S]/Km)), and spotting subtle hallucinated assay conditions in ChEMBL bioactivity records.',
-      category: 'bioactivity',
-      status: 'active',
-      modelTarget: 'qwen2.5-coder / llama-3.3',
-      runCount: 7,
-      packetCount: 32,
-      createdAt: now - 86400000 * 5,
-      updatedAt: now - 7200000,
-    },
-    {
-      id: 'exp_uas_storage_spine',
-      title: 'UAS (Unified Address Space) Replayable Packets Protocol',
-      description: 'Formalizing state packets, delta proofs, and deterministic replay traces for research reproducibility across native Windows / Linux environments.',
-      category: 'rlhf',
-      status: 'active',
-      modelTarget: 'ollama/llama3.2',
-      runCount: 3,
-      packetCount: 12,
-      createdAt: now - 86400000 * 2,
-      updatedAt: now - 1800000,
-    }
-  ];
-
-  for (const exp of demoExperiments) {
-    db.insert(experiments).values({
-      id: exp.id,
-      title: exp.title,
-      description: exp.description,
-      category: exp.category,
-      status: exp.status,
-      modelTarget: exp.modelTarget,
-      runCount: exp.runCount,
-      packetCount: exp.packetCount,
-      createdAt: exp.createdAt,
-      updatedAt: exp.updatedAt,
-    }).run();
-  }
-
-  // Seed sample rich packets
-  const samplePackets = [
-    {
-      id: 'pkt_sample_01',
-      experimentId: 'exp_bioactivity_curation',
-      type: 'prompt' as const,
-      source: 'user' as const,
-      model: 'llama3.2:3b',
-      provider: 'ollama' as const,
-      input: 'Given an assay with [S] = 5 mM and substrate Km = 2.5 mM, an experimental IC50 of 42 nM is observed against EGFR kinase. Calculate the true Ki and identify any assumptions made.',
-      output: 'Using the Cheng-Prusoff equation for competitive inhibition:\n\nKi = IC50 / (1 + [S] / Km)\n\nGiven:\n- IC50 = 42 nM\n- [S] = 5 mM\n- Km = 2.5 mM\n\nCalculation:\nKi = 42 / (1 + 5 / 2.5) = 42 / (1 + 2) = 42 / 3 = 14.0 nM\n\nAssumptions required:\n1. Mutually exclusive competitive binding.\n2. Enzyme concentration [E] << IC50 (tight binding corrections not needed).\n3. Reversible equilibrium kinetics.',
-      metadata: { domain: 'Pharmacology', equation: 'Cheng-Prusoff', confidence: 0.98 },
-      tokens: { promptTokens: 48, completionTokens: 142, totalTokens: 190 },
-      latency: { totalLatencyMs: 420, timeToFirstTokenMs: 85, tokensPerSec: 33.8 },
-      tags: ['bioactivity', 'kinetics', 'cheng-prusoff', 'egfr'],
-      createdAt: now - 3600000 * 4,
-    },
-    {
-      id: 'pkt_sample_02',
-      experimentId: 'exp_mech_interp_01',
-      type: 'comparison' as const,
-      source: 'evaluator' as const,
-      model: 'qwen2.5:7b vs mistral-nemo',
-      provider: 'local' as const,
-      input: 'Explain how attention head L1H4 copies token A when preceded by pattern [A][B] ... [A] -> ? in an indirect induction circuit.',
-      output: 'Model A explains the QK circuit matching previous token position with current token, followed by OV circuit projecting the subsequent token value. Model B vaguely mentions pattern matching without distinguishing QK vs OV subspace operations.',
-      metadata: { arenaMode: 'side-by-side', preferenceWinner: 'model_a' },
-      tokens: { promptTokens: 38, completionTokens: 210, totalTokens: 248 },
-      latency: { totalLatencyMs: 650, timeToFirstTokenMs: 110, tokensPerSec: 32.3 },
-      tags: ['mech-interp', 'induction-heads', 'qk-circuit', 'ov-circuit'],
-      createdAt: now - 3600000 * 2,
-    }
-  ];
-
-  for (const pkt of samplePackets) {
-    db.insert(packets).values({
-      id: pkt.id,
-      experimentId: pkt.experimentId,
-      type: pkt.type,
-      source: pkt.source,
-      model: pkt.model,
-      provider: pkt.provider,
-      input: pkt.input,
-      output: pkt.output,
-      metadata: JSON.stringify(pkt.metadata),
-      tokens: JSON.stringify(pkt.tokens),
-      latency: JSON.stringify(pkt.latency),
-      tags: JSON.stringify(pkt.tags),
-      createdAt: pkt.createdAt,
-    }).run();
-  }
 }
 
 function safeParse(str: string | null): any {
