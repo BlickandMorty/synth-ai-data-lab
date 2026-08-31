@@ -48,8 +48,16 @@ export default function DataLabPage() {
     const replayParams = new URLSearchParams(window.location.search);
     const replayPrompt = replayParams.get('prompt');
     const replayExperimentId = replayParams.get('experimentId');
+    const replayModel = replayParams.get('model');
+    const replayExecutionMode = replayParams.get('executionMode');
+    const replayTemperature = Number(replayParams.get('temperature'));
+    const replaySystemPrompt = replayParams.get('systemPrompt');
     if (replayPrompt) setPrompt(replayPrompt);
     if (replayExperimentId) setExperimentId(replayExperimentId);
+    if (replayModel && AVAILABLE_MODELS.some((model) => model.id === replayModel)) setSelectedModel(replayModel);
+    if (replayExecutionMode === 'direct' || replayExecutionMode === 'python') setExecutionMode(replayExecutionMode);
+    if (Number.isFinite(replayTemperature) && replayTemperature >= 0 && replayTemperature <= 1) setTemperature(replayTemperature);
+    if (replaySystemPrompt) { setSystemPrompt(replaySystemPrompt); setShowAdvanced(true); }
   }, []);
 
   const presets = [
