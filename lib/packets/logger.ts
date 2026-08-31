@@ -342,6 +342,25 @@ export function getDatasetSummary() {
   };
 }
 
+export function exportDatasetManifest() {
+  const packetJsonl = exportPacketsAsJsonl();
+  const preferenceJsonl = exportPreferencePairsAsJsonl();
+  return {
+    schema: 'synth.dataset.manifest.v1',
+    generatedAt: new Date().toISOString(),
+    summary: getDatasetSummary(),
+    exports: {
+      packets: { schema: 'synth.packet.v1', records: packetJsonl ? packetJsonl.split('\n').length : 0, sha256: digest(packetJsonl) },
+      preferences: { schema: 'synth.preference.v1', records: preferenceJsonl ? preferenceJsonl.split('\n').length : 0, sha256: digest(preferenceJsonl) },
+    },
+    limits: [
+      'A digest identifies an exported snapshot; it does not prove factual correctness, consent, licensing, or safety.',
+      'Simulator output is excluded from preference exports.',
+      'Preference exports require matching real completion packets and human review.',
+    ],
+  };
+}
+
 export function seedDemoDataIfEmpty() {
   const existingExp = db.select().from(experiments).all();
   if (existingExp.length > 0) return;
