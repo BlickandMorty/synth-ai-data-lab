@@ -13,9 +13,22 @@ export async function POST(req: Request) {
     let outputText = '';
     let provider: 'ollama' | 'transformers' | 'simulator' | 'openai' | 'anthropic' = 'simulator';
     let executionEngine = 'synth-simulator-circuit';
+    let fallbackReason: string | undefined;
     let providerMetrics: { promptTokens?: number; completionTokens?: number; totalTokens?: number; totalLatencyMs?: number } = {};
     const [providerType, ...modelParts] = model.split(':');
     const modelName = modelParts.join(':');
+    const requestedMaxTokens = Math.min(Math.max(Number(maxNewTokens) || 160, 1), 512);
+    // Qwen3 commonly consumes a short budget in its internal reasoning before
+    // emitting a visible answer. A 96-token comparison cap can therefore log an
+    // empty but technically successful completion. Its local cap remains bounded
+    // at 512, which is enough for a visible, reviewable response in this setup.
+    const effectiveMaxTokens = providerType === 'ollama' && modelName.startsWith('qwen3') ? 512 : requestedMaxTokens;
+    // Ollama's installed Qwen3 variants otherwise spend short runs in reasoning
+    // mode and can return an empty visible completion. This inference-only
+    // directive is recorded in packet metadata; the original user prompt stays
+    // intact as the packet input.
+    const providerPromptDirective = providerType === 'ollama' && modelName.startsWith('qwen3') ? '/no_think' : undefined;
+    const promptForProvider = providerPromptDirective ? `${prompt} ${providerPromptDirective}` : prompt;
 
     if (providerType === 'ollama' || providerType === 'transformers') {
       provider = providerType;
@@ -25,7 +38,7 @@ export async function POST(req: Request) {
           const engineRes = await fetch(`${engineUrl}/v1/run`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: modelName || 'llama3.2', provider: providerType, prompt, system_prompt: systemPrompt, temperature, max_new_tokens: maxNewTokens }),
+            body: JSON.stringify({ model: modelName || 'llama3.2', provider: providerType, prompt: promptForProvider, system_prompt: systemPrompt, temperature, max_new_tokens: effectiveMaxTokens }),
             signal: AbortSignal.timeout(90000),
           });
           if (!engineRes.ok) throw new Error(`Python engine returned ${engineRes.status}`);
@@ -43,7 +56,7 @@ export async function POST(req: Request) {
           const ollamaRes = await fetch(`${ollamaBaseUrl}/api/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: modelName || 'llama3.2', prompt, system: systemPrompt, stream: false, options: { temperature, num_predict: Math.min(Math.max(Number(maxNewTokens) || 160, 1), 512) } }),
+            body: JSON.stringify({ model: modelName || 'llama3.2', prompt: promptForProvider, system: systemPrompt, stream: false, options: { temperature, num_predict: effectiveMaxTokens } }),
             signal: AbortSignal.timeout(60000),
           });
           if (!ollamaRes.ok) throw new Error(`Ollama returned ${ollamaRes.status}`);
@@ -53,7 +66,9 @@ export async function POST(req: Request) {
         } else {
           throw new Error('Transformers models require the Python research engine');
         }
+        if (!outputText.trim()) throw new Error('The local model returned no visible completion.');
       } catch (error) {
+        fallbackReason = error instanceof Error ? error.message : 'Unknown local provider failure.';
         outputText = generateSimulatedResponse(prompt, model, executionMode === 'python' ? 'The Python research engine was unavailable.' : 'No local model response was available.');
         provider = 'simulator';
       }
@@ -70,7 +85,7 @@ export async function POST(req: Request) {
       name: `${modelName || model} · ${new Date(startTime).toLocaleTimeString()}`,
       model,
       provider,
-      parameters: { temperature, maxTokens: Math.min(Math.max(Number(maxNewTokens) || 160, 1), 512), systemPrompt: systemPrompt || undefined },
+      parameters: { temperature, maxTokens: effectiveMaxTokens, systemPrompt: systemPrompt || undefined },
       startedAt: startTime,
     }) : undefined;
 
@@ -88,6 +103,10 @@ export async function POST(req: Request) {
       metadata: {
         systemPrompt: systemPrompt || undefined,
         temperature,
+        requestedMaxTokens,
+        effectiveMaxTokens,
+        providerPromptDirective,
+        fallbackReason,
         requestedProvider: providerType || 'simulator',
         executionMode,
       },
@@ -112,6 +131,10 @@ export async function POST(req: Request) {
         temperature,
         engine: executionEngine,
         executionMode,
+        requestedMaxTokens,
+        effectiveMaxTokens,
+        providerPromptDirective,
+        fallbackReason,
         syntheticOutput: provider === 'simulator',
         promptPacketId: promptPacket.id,
       },
