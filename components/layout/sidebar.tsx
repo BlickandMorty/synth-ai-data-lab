@@ -8,6 +8,7 @@ import {
   Layers, 
   Tag, 
   BookOpen, 
+  GitBranch,
   Settings, 
   LayoutDashboard,
   Cpu,
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Packet Explorer', href: '/packets', icon: Layers },
   { name: 'Dataset Review', href: '/datasets', icon: ClipboardCheck },
   { name: 'Experiment Journal', href: '/experiments', icon: BookOpen },
+  { name: 'Research System', href: '/projects', icon: GitBranch },
   { name: 'Model & System Settings', href: '/settings', icon: Settings },
 ];
 
