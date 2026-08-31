@@ -1,22 +1,57 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Database, Filter, Hash, ShieldCheck } from 'lucide-react';
+import { Database, Hash, SendHorizontal, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { DataPacket, PacketType } from '@/lib/packets/types';
 
-const packetTypes: Array<PacketType | 'all'> = ['all', 'prompt', 'completion', 'comparison', 'preference_pair', 'red_team', 'search_query'];
+const packetTypes: Array<PacketType | 'all'> = ['all', 'prompt', 'completion', 'comparison', 'preference_pair', 'red_team', 'search_query', 'tool_call', 'classification', 'causal_trace', 'eval_rubric'];
+const captureTypes: PacketType[] = ['search_query', 'tool_call', 'red_team', 'classification', 'causal_trace', 'eval_rubric'];
 
 export default function PacketsPage() {
   const [packets, setPackets] = useState<DataPacket[]>([]);
   const [filter, setFilter] = useState<(typeof packetTypes)[number]>('all');
   const [selected, setSelected] = useState<DataPacket | null>(null);
+  const [captureType, setCaptureType] = useState<PacketType>('search_query');
+  const [captureInput, setCaptureInput] = useState('');
+  const [captureOutput, setCaptureOutput] = useState('');
+  const [captureTags, setCaptureTags] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetch('/api/packets?limit=200').then((res) => res.json()).then((data) => setPackets(data.packets || []));
   }, []);
 
   const visible = useMemo(() => filter === 'all' ? packets : packets.filter((packet) => packet.type === filter), [filter, packets]);
+
+  async function capturePacket() {
+    if (!captureInput.trim()) return;
+    setSaving(true);
+    try {
+      const response = await fetch('/api/packets', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: captureType,
+          source: 'user',
+          model: 'external-context',
+          provider: 'local',
+          input: captureInput,
+          output: captureOutput || undefined,
+          metadata: { captureMethod: 'packet-explorer-manual-entry' },
+          tags: captureTags.split(',').map((tag) => tag.trim()).filter(Boolean),
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setPackets((current) => [data.packet, ...current]);
+        setSelected(data.packet);
+        setCaptureInput(''); setCaptureOutput(''); setCaptureTags('');
+      }
+    } finally { setSaving(false); }
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -29,6 +64,14 @@ export default function PacketsPage() {
       <div className="flex flex-wrap gap-2">
         {packetTypes.map((type) => <button key={type} onClick={() => setFilter(type)} className={`px-3 py-1.5 rounded-full text-[11px] font-mono border transition-colors ${filter === type ? 'bg-[#C4956A]/15 border-[#C4956A]/50 text-[#C4956A]' : 'border-border/60 text-muted-foreground hover:bg-secondary'}`}>{type}</button>)}
       </div>
+
+      <section className="rounded-xl border border-[#C4956A]/30 bg-[#C4956A]/5 p-5 space-y-3">
+        <div><h2 className="text-sm font-semibold">Capture external research context</h2><p className="text-xs text-muted-foreground mt-1">Log a search query, tool result, red-team transcript, or research observation as a typed packet. This is a record of what you entered, not a claim that SYNTH independently verified it.</p></div>
+        <div className="grid grid-cols-1 md:grid-cols-[190px_1fr] gap-3"><select value={captureType} onChange={(event) => setCaptureType(event.target.value as PacketType)} className="h-9 rounded-md border border-input bg-background px-3 text-xs">{captureTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select><Input value={captureTags} onChange={(event) => setCaptureTags(event.target.value)} placeholder="Optional tags, comma separated" className="text-xs" /></div>
+        <Textarea value={captureInput} onChange={(event) => setCaptureInput(event.target.value)} placeholder="Query, tool input, observation, or transcript you want to preserve" rows={3} className="text-xs font-mono" />
+        <Textarea value={captureOutput} onChange={(event) => setCaptureOutput(event.target.value)} placeholder="Optional result, answer, or observation" rows={2} className="text-xs font-mono" />
+        <Button variant="accent" size="sm" disabled={saving || !captureInput.trim()} onClick={capturePacket} className="gap-2"><SendHorizontal className="w-3.5 h-3.5" />{saving ? 'Saving packet...' : 'Capture typed packet'}</Button>
+      </section>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_.7fr] gap-5">
         <div className="rounded-xl border border-border/60 overflow-hidden bg-card/40">
