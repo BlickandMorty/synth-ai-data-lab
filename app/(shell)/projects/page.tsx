@@ -1,13 +1,23 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, BookOpen, ExternalLink, GitBranch, Layers, ShieldCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Activity, ArrowRight, BookOpen, ExternalLink, GitBranch, Layers, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CANON_RESEARCH_PROJECTS } from '@/lib/research/catalog';
 
 export default function ProjectsPage() {
+  const [activity, setActivity] = useState<Record<string, { available: boolean; pushedAt?: string; defaultBranch?: string; error?: string }>>({});
+
+  useEffect(() => {
+    fetch('/api/projects/activity').then((response) => response.json()).then((data) => {
+      if (!data.projects) return;
+      setActivity(Object.fromEntries(data.projects.map((item: { repository: string; available: boolean; pushedAt?: string; defaultBranch?: string; error?: string }) => [item.repository, item])));
+    }).catch(() => undefined);
+  }, []);
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <header className="border-b border-border/40 pb-6">
@@ -38,7 +48,7 @@ export default function ProjectsPage() {
           {CANON_RESEARCH_PROJECTS.map((project) => (
             <Card key={project.name} className="border-border/60 bg-card/45 hover:border-[#C4956A]/45 transition-colors">
               <CardHeader className="pb-3"><div className="flex items-start justify-between gap-3"><div><CardTitle className="text-base">{project.name}</CardTitle><p className="font-mono text-[10px] text-[#C4956A] mt-1">{project.role}</p></div><Badge variant="purple" className="font-mono text-[9px] shrink-0">{project.status}</Badge></div><CardDescription className="text-xs leading-relaxed mt-2">{project.description}</CardDescription></CardHeader>
-              <CardContent className="space-y-3"><div className="rounded-lg bg-secondary/35 border border-border/40 p-3"><p className="font-mono text-[10px] text-muted-foreground uppercase tracking-wide">Connection</p><p className="text-xs mt-1">{project.connection}</p><p className="text-xs text-muted-foreground leading-relaxed mt-2">{project.useInSynth}</p></div><a href={project.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-[#C4956A] hover:underline">Open repository <ExternalLink className="w-3 h-3" /></a></CardContent>
+              <CardContent className="space-y-3"><div className="rounded-lg bg-secondary/35 border border-border/40 p-3"><p className="font-mono text-[10px] text-muted-foreground uppercase tracking-wide">Connection</p><p className="text-xs mt-1">{project.connection}</p><p className="text-xs text-muted-foreground leading-relaxed mt-2">{project.useInSynth}</p></div>{activity[project.repository] && <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono"><Activity className="w-3 h-3 text-[#C4956A]" />{activity[project.repository].available ? <>GitHub last pushed {activity[project.repository].pushedAt ? new Date(activity[project.repository].pushedAt!).toLocaleDateString() : 'at an unknown time'}{activity[project.repository].defaultBranch ? ` · ${activity[project.repository].defaultBranch}` : ''}</> : <>{activity[project.repository].error}</>}</div>}<a href={project.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-[#C4956A] hover:underline">Open repository <ExternalLink className="w-3 h-3" /></a></CardContent>
             </Card>
           ))}
         </div>
