@@ -67,6 +67,9 @@ For the full technology and research decision, see [Architecture](docs/ARCHITECT
 
 For the guarded DPO preparation and training workflow, see [Training](docs/TRAINING.md).
 
+For a verified map of what V1 can do today and what still requires genuine
+human review, see [V1 capability audit](docs/V1_CAPABILITY_AUDIT.md).
+
 ## V1 routes
 
 - `/` - dashboard
