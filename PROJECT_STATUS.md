@@ -14,6 +14,15 @@ service and it does not claim to update model weights.
 - Use the local Python FastAPI engine for Ollama runs with explicit engine provenance.
 - Run a small CPU-friendly open Transformers model (`SmolLM2 135M`) through the engine.
 - Run a bounded, sequential comparison between local Ollama and Transformers targets under one experiment.
+- Capture user-supplied external context as typed packets (for example search-query,
+  tool-call, red-team, or causal-trace context) without pretending that SYNTH has a
+  live connector for that source.
+- Create formal experiment runs and replay a saved prompt from an experiment detail page.
+- Summarize the local human review signal for an experiment: review count,
+  preference decisions, and per-rubric averages.
+- Preflight a local export, produce a reproducible manifest, and use a guarded
+  local DPO-preparation workflow. The training gate rejects datasets that are too
+  small and does not claim a trained model exists.
 
 ## Evidence checked locally on 2026-08-31
 
@@ -31,7 +40,8 @@ service and it does not claim to update model weights.
 - The simulator exists only to test the interface when Ollama is unavailable.
   Simulator output is visibly labeled and excluded from preference exports.
 - The current database is local SQLite. It is deliberately excluded from Git.
-- Search, browser, and tool-call connectors are planned packet types; they are
-  not implemented as live integrations in V1.
+- Search, browser, and tool-call connectors are not live integrations in V1.
+  Typed external context may be captured manually so its source and limits stay
+  visible in the experiment record.
 - The installed PyTorch runtime is CPU-only. Larger Transformers experiments
   should use Ollama or wait for a GPU-capable setup.

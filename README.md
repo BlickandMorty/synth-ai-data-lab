@@ -13,6 +13,9 @@ It is built for the work between "I ran a prompt" and "I have data I can trust e
 - Supports a side-by-side annotation flow with rubric scores, preference choice, flaw tags, and written justification.
 - Runs a bounded, sequential two-model comparison under one experiment journal, including Ollama ↔ Transformers comparisons on this CPU machine.
 - Groups records into experiment journals so a personal model-internals, scientific-reasoning, UAS, or security exercise can be replayed instead of becoming a loose folder of screenshots.
+- Captures typed external context manually (for example a search query, tool call, or red-team note) as a packet when you need it in an experiment. This is deliberate capture, not a hidden browser integration.
+- Preflights local packets and exports reproducible JSONL snapshots with manifests before any post-training workflow.
+- Shows experiment-level human review counts, preference decisions, and rubric averages while clearly labeling those summaries as reviewer signal rather than objective capability scores.
 
 ## What V1 does not claim
 
@@ -71,15 +74,21 @@ For the guarded DPO preparation and training workflow, see [Training](docs/TRAIN
 - `/annotate` - compare outputs and save a review
 - `/packets` - inspect packet addresses, content, and integrity digests
 - `/experiments` - create and view replayable experiment journals
+- `/projects` - the research-system map: how SYNTH connects to the small canon of active projects without claiming they are all one application
+- `/datasets` - review export eligibility, preflight local data, and check post-training readiness
 - `/settings` - see local Ollama and storage status
 
 ## Next milestones
 
-1. Packet export to JSONL for supervised fine-tuning and preference data.
-2. Run comparison mode: same prompt, multiple local models, one shared packet family.
-3. A review queue with assigned annotation tasks and packet-level disagreement summaries.
-4. Published experiment cards that expose method and limits but keep personal raw data local.
+1. A review queue that makes it easier to collect enough independent, written human judgments for a meaningful dataset.
+2. Optional live browser/tool connectors with explicit consent and clear source capture, rather than hidden collection.
+3. Published experiment cards that expose method, limits, and aggregate results while personal raw data remains local.
+4. A small report generator for experiment methods, packet counts, reviewer signal, and dataset manifests.
 5. A minimal Windows companion only after the web workflow proves what native functionality is actually worth building.
+
+## Research-system map
+
+SYNTH is the evidence layer for a deliberately small canon of projects, rather than an attempt to make every repository look equally mature. It can document tests for Epistemos, the Unified Address Space idea, Scientific Reasoning Audit Loops, LivingBrain, Instant Recall, and synthetic Security Operations exercises. The in-app `/projects` page explains the boundary for each one: whether it is the research workspace, a provenance principle, a separate project under evaluation, or a safe synthetic evaluation domain.
 
 ## Local configuration
 
