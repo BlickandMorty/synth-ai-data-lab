@@ -1,0 +1,8 @@
+node_modules/
+.next/
+.logs/
+synth.db
+synth.db-*
+.env.local
+*.tsbuildinfo
+
