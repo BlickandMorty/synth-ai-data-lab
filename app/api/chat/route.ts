@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { logPacket } from '@/lib/packets/logger';
+import { completeExperimentRun, createExperimentRun, logPacket } from '@/lib/packets/logger';
 
 export async function POST(req: Request) {
   const startTime = Date.now();
@@ -65,12 +65,21 @@ export async function POST(req: Request) {
     const totalLatencyMs = Date.now() - startTime;
     const promptTokens = providerMetrics.promptTokens ?? Math.ceil(prompt.length / 4);
     const completionTokens = providerMetrics.completionTokens ?? Math.ceil(outputText.length / 4);
+    const run = experimentId ? createExperimentRun({
+      experimentId,
+      name: `${modelName || model} · ${new Date(startTime).toLocaleTimeString()}`,
+      model,
+      provider,
+      parameters: { temperature, maxTokens: Math.min(Math.max(Number(maxNewTokens) || 160, 1), 512), systemPrompt: systemPrompt || undefined },
+      startedAt: startTime,
+    }) : undefined;
 
     // Record the user input and resulting completion separately. The completion
     // points back to the exact prompt packet, so a later review can replay the
     // relationship instead of treating the exchange as one opaque blob.
     const promptPacket = await logPacket({
       experimentId: experimentId || undefined,
+      runId: run?.id,
       type: 'prompt',
       source: 'user',
       model,
@@ -90,6 +99,7 @@ export async function POST(req: Request) {
     // Record the resulting model interaction as a rich data packet.
     const packet = await logPacket({
       experimentId: experimentId || undefined,
+      runId: run?.id,
       type: 'completion',
       source: 'user',
       model: model,
@@ -117,6 +127,13 @@ export async function POST(req: Request) {
       },
       tags: ['data-lab', 'model-run', modelName || 'transformer'],
     });
+
+    if (run) {
+      completeExperimentRun(run.id, {
+        totalPackets: 2,
+        avgLatencyMs: providerMetrics.totalLatencyMs ?? totalLatencyMs,
+      });
+    }
 
     return NextResponse.json({
       success: true,

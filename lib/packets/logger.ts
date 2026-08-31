@@ -65,7 +65,6 @@ export async function logPacket(packetData: Omit<DataPacket, 'id' | 'createdAt'>
       db.update(experiments)
         .set({
           packetCount: exp.packetCount + 1,
-          runCount: exp.runCount + (newPacket.type === 'prompt' ? 1 : 0),
           updatedAt: Date.now(),
         })
         .where(eq(experiments.id, newPacket.experimentId))
@@ -74,6 +73,76 @@ export async function logPacket(packetData: Omit<DataPacket, 'id' | 'createdAt'>
   }
 
   return newPacket;
+}
+
+export function createExperimentRun(data: {
+  experimentId: string;
+  name: string;
+  model: string;
+  provider: string;
+  parameters: ExperimentRun['parameters'];
+  startedAt?: number;
+}): ExperimentRun {
+  const startedAt = data.startedAt || Date.now();
+  const run: ExperimentRun = {
+    id: generateId('run'),
+    experimentId: data.experimentId,
+    name: data.name,
+    model: data.model,
+    provider: data.provider,
+    parameters: data.parameters,
+    metrics: { totalPackets: 0, avgLatencyMs: 0 },
+    status: 'running',
+    startedAt,
+  };
+  db.insert(experimentRuns).values({
+    id: run.id,
+    experimentId: run.experimentId,
+    name: run.name,
+    model: run.model,
+    provider: run.provider,
+    parameters: JSON.stringify(run.parameters),
+    metrics: JSON.stringify(run.metrics),
+    status: run.status,
+    startedAt: run.startedAt,
+    finishedAt: null,
+  }).run();
+
+  const experiment = db.select().from(experiments).where(eq(experiments.id, run.experimentId)).get();
+  if (experiment) {
+    db.update(experiments)
+      .set({ runCount: experiment.runCount + 1, updatedAt: Date.now() })
+      .where(eq(experiments.id, run.experimentId))
+      .run();
+  }
+  return run;
+}
+
+export function completeExperimentRun(runId: string, metrics: ExperimentRun['metrics'], status: ExperimentRun['status'] = 'completed') {
+  db.update(experimentRuns).set({
+    metrics: JSON.stringify(metrics),
+    status,
+    finishedAt: Date.now(),
+  }).where(eq(experimentRuns.id, runId)).run();
+}
+
+export function getRunsForExperiment(experimentId: string): ExperimentRun[] {
+  return db.select().from(experimentRuns)
+    .where(eq(experimentRuns.experimentId, experimentId))
+    .orderBy(desc(experimentRuns.startedAt))
+    .all()
+    .map((row) => ({
+      id: row.id,
+      experimentId: row.experimentId,
+      name: row.name,
+      model: row.model,
+      provider: row.provider,
+      parameters: safeParse(row.parameters),
+      metrics: safeParse(row.metrics),
+      status: row.status as ExperimentRun['status'],
+      startedAt: row.startedAt,
+      finishedAt: row.finishedAt || undefined,
+    }));
 }
 
 export function getAllPackets(limit = 100): DataPacket[] {
