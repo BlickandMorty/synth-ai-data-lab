@@ -59,6 +59,8 @@ Experiment -> Run -> Packet -> Annotation
 
 This lets a prompt, model output, annotation, search query, or future transformer activation trace keep its type and history when it moves between experiments.
 
+For the full technology and research decision, see [Architecture](docs/ARCHITECTURE.md).
+
 ## V1 routes
 
 - `/` - dashboard
