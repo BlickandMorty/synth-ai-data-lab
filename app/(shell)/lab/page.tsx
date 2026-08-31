@@ -36,6 +36,7 @@ export default function DataLabPage() {
   const [loading, setLoading] = useState(false);
   const [output, setOutput] = useState('');
   const [currentPacket, setCurrentPacket] = useState<DataPacket | null>(null);
+  const [comparisonMateId, setComparisonMateId] = useState<string | null>(null);
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [experimentId, setExperimentId] = useState('');
 
@@ -71,6 +72,7 @@ export default function DataLabPage() {
     setLoading(true);
     setOutput('');
     setCurrentPacket(null);
+    setComparisonMateId(null);
 
     try {
       const res = await fetch(comparisonMode ? '/api/compare' : '/api/chat', {
@@ -99,6 +101,7 @@ export default function DataLabPage() {
         const results = data.comparison.results || [];
         setOutput(results.map((result: { packet?: DataPacket; output?: string }) => `### ${result.packet?.model || 'model'}\n\n${result.output || ''}`).join('\n\n---\n\n'));
         setCurrentPacket(results[0]?.packet || null);
+        setComparisonMateId(results[1]?.packet?.id || null);
       } else if (data.success) {
         setOutput(data.output);
         setCurrentPacket(data.packet);
@@ -370,10 +373,10 @@ export default function DataLabPage() {
                   <span className="text-[10px] font-mono text-muted-foreground truncate max-w-[180px]">
                     ID: {currentPacket.id}
                   </span>
-                  <Link href={`/annotate?packetId=${currentPacket.id}`}>
+                  <Link href={comparisonMateId ? `/annotate?leftPacketId=${currentPacket.id}&rightPacketId=${comparisonMateId}` : `/annotate?leftPacketId=${currentPacket.id}`}>
                     <Button variant="outline" size="sm" className="text-[11px] h-7 gap-1 font-mono">
                       <Tag className="w-3 h-3 text-[#C4956A]" />
-                      Annotate in Studio
+                      {comparisonMateId ? 'Review Comparison' : 'Annotate in Studio'}
                     </Button>
                   </Link>
                 </div>
