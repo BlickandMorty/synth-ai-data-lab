@@ -67,6 +67,7 @@ export default function DashboardPage() {
         <p className="text-muted-foreground text-sm max-w-2xl leading-relaxed">
           A local AI data and evaluation canvas. Run local models, preserve prompts and completions as linked packets, and turn human review into careful preference data for later research or post-training.
         </p>
+        <Link href="/onboarding" className="inline-flex text-xs text-[#C4956A] hover:underline mt-3">New to SYNTH? Start with one real question →</Link>
       </div>
 
       {/* Metric Cards */}
