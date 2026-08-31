@@ -261,6 +261,44 @@ export function saveAnnotation(annotationData: Omit<PacketAnnotation, 'id' | 'cr
   return newAnn;
 }
 
+export type AnnotationQueueItem = {
+  leftPacketId: string;
+  rightPacketId: string;
+  promptPreview: string;
+  experimentId?: string;
+};
+
+function normalizedPacketInput(packet: DataPacket) {
+  return typeof packet.input === 'string' ? packet.input : JSON.stringify(packet.input);
+}
+
+function pairKey(firstId: string, secondId: string) {
+  return [firstId, secondId].sort().join(':');
+}
+
+export function getAnnotationQueue(limit = 30): AnnotationQueueItem[] {
+  const realCompletions = getAllPackets(10000).filter((packet) => packet.type === 'completion' && Boolean(packet.output) && packet.provider !== 'simulator');
+  const reviewedPairs = new Set(db.select().from(annotations).all().filter((row) => row.comparisonPairId).map((row) => pairKey(row.packetId, row.comparisonPairId!)));
+  const byPrompt = new Map<string, DataPacket[]>();
+  for (const packet of realCompletions) {
+    const key = normalizedPacketInput(packet);
+    byPrompt.set(key, [...(byPrompt.get(key) || []), packet]);
+  }
+
+  const items: AnnotationQueueItem[] = [];
+  for (const [prompt, group] of byPrompt.entries()) {
+    const ordered = [...group].sort((a, b) => b.createdAt - a.createdAt);
+    for (let index = 0; index < ordered.length; index += 1) {
+      const left = ordered[index];
+      const right = ordered.slice(index + 1).find((candidate) => candidate.model !== left.model || candidate.provider !== left.provider);
+      if (!right || reviewedPairs.has(pairKey(left.id, right.id))) continue;
+      items.push({ leftPacketId: left.id, rightPacketId: right.id, promptPreview: prompt.slice(0, 180), experimentId: left.experimentId || right.experimentId });
+      break;
+    }
+  }
+  return items.sort((a, b) => (b.experimentId || '').localeCompare(a.experimentId || '')).slice(0, limit);
+}
+
 export function getAllExperiments(): Experiment[] {
   const rows = db.select().from(experiments).orderBy(desc(experiments.updatedAt)).all();
   return rows.map(r => ({
