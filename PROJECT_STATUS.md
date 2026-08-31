@@ -10,6 +10,8 @@ service and it does not claim to update model weights.
 - Give each packet a stable UAS-style address and SHA-256 integrity digest.
 - Group packets under a user-created experiment journal.
 - Review two outputs in the annotation studio and save a preference decision.
+- Surface unreviewed, eligible matching-prompt completion pairs in an annotation queue;
+  reviewed pairs are not re-offered as fresh preference data.
 - Export raw packets or human-reviewed, non-simulator preference pairs as JSONL.
 - Use the local Python FastAPI engine for Ollama runs with explicit engine provenance.
 - Run a small CPU-friendly open Transformers model (`SmolLM2 135M`) through the engine.

@@ -11,6 +11,7 @@ It is built for the work between "I ran a prompt" and "I have data I can trust e
 - Gives each packet a UAS-style address: `kind / content digest / source family / revision`.
 - Adds an integrity digest so a review can identify the exact record it refers to.
 - Supports a side-by-side annotation flow with rubric scores, preference choice, flaw tags, and written justification.
+- Maintains an eligible annotation queue: it proposes only unreviewed pairs of real, matching-prompt completions from different local targets. Reviewed pairs do not reappear as new training examples.
 - Runs a bounded, sequential two-model comparison under one experiment journal, including Ollama ↔ Transformers comparisons on this CPU machine.
 - Groups records into experiment journals so a personal model-internals, scientific-reasoning, UAS, or security exercise can be replayed instead of becoming a loose folder of screenshots.
 - Captures typed external context manually (for example a search query, tool call, or red-team note) as a packet when you need it in an experiment. This is deliberate capture, not a hidden browser integration.
