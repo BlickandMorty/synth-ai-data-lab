@@ -42,10 +42,21 @@ class ValidationRequest(BaseModel):
     records: list[dict[str, Any]] = Field(default_factory=list)
 
 
+class TrainingReadinessRequest(BaseModel):
+    preference_pairs: int = Field(ge=0)
+
+
 def transformers_status() -> dict[str, bool]:
     return {
         "transformers_installed": importlib.util.find_spec("transformers") is not None,
         "torch_installed": importlib.util.find_spec("torch") is not None,
+    }
+
+
+def training_status() -> dict[str, bool]:
+    return {
+        "trl_installed": importlib.util.find_spec("trl") is not None,
+        "peft_installed": importlib.util.find_spec("peft") is not None,
     }
 
 
@@ -85,6 +96,7 @@ async def health() -> dict[str, Any]:
         "version": APP_VERSION,
         "ollama": {"running": bool(models), "base_url": OLLAMA_BASE_URL, "models": models},
         "transformers": transformers_status(),
+        "training": training_status(),
         "transformers_default_model": DEFAULT_TRANSFORMERS_MODEL,
         "loaded_transformer_models": list(_transformer_cache.keys()),
         "note": "Transformers runs require an explicitly installed runtime and local or authorized model.",
@@ -96,6 +108,7 @@ async def models() -> dict[str, Any]:
     return {
         "ollama": await ollama_models(),
         "transformers": transformers_status(),
+        "training": training_status(),
         "transformers_default_model": DEFAULT_TRANSFORMERS_MODEL,
         "loaded_transformer_models": list(_transformer_cache.keys()),
     }
@@ -201,4 +214,33 @@ async def validate_packets(request: ValidationRequest) -> dict[str, Any]:
         "records_checked": len(request.records),
         "errors": errors,
         "note": "This checks structure and stated provenance, not factual correctness or licensing.",
+    }
+
+
+@app.post("/v1/training-readiness")
+async def training_readiness(request: TrainingReadinessRequest) -> dict[str, Any]:
+    """State whether the reviewed preference set is large enough to justify a local trial."""
+    import torch
+
+    tools = training_status()
+    blockers: list[str] = []
+    if not all(tools.values()):
+        blockers.append("TRL and PEFT must be installed.")
+    if request.preference_pairs < 20:
+        blockers.append("Collect at least 20 reviewed preference pairs before a small prototype run.")
+    gpu_available = torch.cuda.is_available()
+    recommendations: list[str] = []
+    if request.preference_pairs < 100:
+        recommendations.append("One to twenty pairs is useful for testing the workflow, not evidence of a durable model improvement.")
+    if not gpu_available:
+        recommendations.append("This machine is CPU-only. Use a small model for a slow proof-of-workflow run; use a GPU for serious post-training.")
+    return {
+        "eligible_for_small_cpu_prototype": not blockers,
+        "ready_for_serious_post_training": bool(all(tools.values()) and request.preference_pairs >= 100 and gpu_available),
+        "preference_pairs": request.preference_pairs,
+        "gpu_available": gpu_available,
+        "tools": tools,
+        "blockers": blockers,
+        "recommendations": recommendations,
+        "note": "Readiness measures workflow prerequisites, not dataset quality, rights, safety, or expected model benefit.",
     }

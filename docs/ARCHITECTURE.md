@@ -66,6 +66,11 @@ needed before a responsible training attempt:
 5. Export real, non-simulator preference pairs as JSONL.
 6. Validate packet structure and provenance before a later fine-tune/DPO job.
 
+SYNTH now has the local TRL and PEFT packages installed, but its readiness
+check deliberately keeps a small CPU prototype behind a 20-pair minimum and
+serious post-training behind a larger reviewed dataset and a GPU. This is a
+guardrail against calling a test run a research result.
+
 That is related to RLHF/post-training, but it is the data-collection and
 evaluation half—not a claim that SYNTH has already trained a better model.
 

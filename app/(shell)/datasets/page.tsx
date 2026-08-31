@@ -16,17 +16,20 @@ type Summary = {
   note: string;
 };
 type Preflight = { valid: boolean; records_checked: number; errors: Array<{ index: number; missing?: string[]; issue?: string }> };
+type TrainingReadiness = { eligible_for_small_cpu_prototype: boolean; ready_for_serious_post_training: boolean; preference_pairs: number; gpu_available: boolean; tools: { trl_installed: boolean; peft_installed: boolean }; blockers: string[]; recommendations: string[]; note: string };
 
 export default function DatasetsPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [preflight, setPreflight] = useState<Preflight | null>(null);
+  const [readiness, setReadiness] = useState<TrainingReadiness | null>(null);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState('');
 
   async function load() {
-    const response = await fetch('/api/datasets/summary');
-    const data = await response.json();
-    setSummary(data.summary || null);
+    const [summaryResponse, readinessResponse] = await Promise.all([fetch('/api/datasets/summary'), fetch('/api/training/readiness')]);
+    const data = await summaryResponse.json();
+    const readinessData = await readinessResponse.json();
+    setSummary(data.summary || null); setReadiness(readinessData.result || null);
   }
   useEffect(() => { load(); }, []);
 
@@ -46,6 +49,7 @@ export default function DatasetsPage() {
     ].map(([label, value]) => <div key={String(label)} className="rounded-xl border border-border/60 bg-card/50 p-4"><p className="text-[10px] font-mono text-muted-foreground uppercase">{label}</p><p className="text-2xl font-mono mt-2">{summary ? value : '…'}</p></div>)}</div>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5"><section className="rounded-xl border border-border/60 bg-card/50 p-5"><div className="flex items-center gap-2"><Database className="w-4 h-4 text-[#C4956A]"/><h2 className="text-sm font-semibold">What is in the ledger</h2></div><div className="mt-4 space-y-3">{summary && <><div><p className="text-[10px] font-mono text-muted-foreground uppercase mb-2">Packet types</p><div className="flex flex-wrap gap-2">{Object.entries(summary.typeCounts).map(([type, count]) => <Badge key={type} variant="purple" className="font-mono">{type} · {count}</Badge>)}</div></div><div><p className="text-[10px] font-mono text-muted-foreground uppercase mb-2">Execution sources</p><div className="flex flex-wrap gap-2">{Object.entries(summary.providerCounts).map(([provider, count]) => <Badge key={provider} variant={provider === 'simulator' ? 'purple' : 'amber'} className="font-mono">{provider} · {count}</Badge>)}</div></div><p className="text-xs text-muted-foreground leading-relaxed">{summary.note}</p></>}</div></section>
       <section className="rounded-xl border border-[#C4956A]/30 bg-[#C4956A]/5 p-5"><h2 className="text-sm font-semibold">Packet preflight</h2><p className="text-xs text-muted-foreground mt-2">Send the current exported packet records to the local Python engine. It checks required SYNTH packet fields and flags simulator output before you reuse the data.</p><Button variant="accent" size="sm" onClick={runPreflight} disabled={checking} className="mt-4 gap-2">{checking ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Checking…</> : 'Run local preflight'}</Button>{preflight && <div className="mt-4 rounded-lg bg-card/70 border border-border/60 p-3 text-xs"><div className="flex items-center gap-2"><CheckCircle2 className={`w-4 h-4 ${preflight.valid ? 'text-emerald-500' : 'text-[#C4956A]'}`} /><span className="font-semibold">{preflight.valid ? 'Structure passed' : 'Issues found'}</span></div><p className="mt-2 text-muted-foreground">Checked {preflight.records_checked} records. {preflight.errors.length ? `${preflight.errors.length} issue(s) need review.` : 'No structural issues reported.'}</p></div>}{error && <div className="mt-4 flex gap-2 text-xs text-[#C4956A]"><TriangleAlert className="w-4 h-4 shrink-0" />{error}</div>}</section></div>
+    <section className="rounded-xl border border-border/60 bg-card/50 p-5"><div className="flex items-center justify-between gap-4"><div><h2 className="text-sm font-semibold">Post-training readiness</h2><p className="text-xs text-muted-foreground mt-1">A guardrail, not a promise: it checks the number of eligible reviewed pairs, the installed local tools, and the machine’s runtime.</p></div><Badge variant={readiness?.eligible_for_small_cpu_prototype ? 'amber' : 'purple'} className="font-mono">{readiness?.eligible_for_small_cpu_prototype ? 'small prototype possible' : 'collect more review data'}</Badge></div>{readiness && <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 text-xs"><div><p className="font-mono text-muted-foreground">{readiness.preference_pairs} eligible pair(s) · {readiness.gpu_available ? 'GPU visible' : 'CPU only'} · TRL {readiness.tools.trl_installed ? 'ready' : 'missing'} · PEFT {readiness.tools.peft_installed ? 'ready' : 'missing'}</p><ul className="mt-3 space-y-1 text-muted-foreground">{readiness.blockers.map((item) => <li key={item}>• {item}</li>)}{readiness.recommendations.map((item) => <li key={item}>• {item}</li>)}</ul></div><p className="text-muted-foreground leading-relaxed">{readiness.note}</p></div>}</section>
     <div className="flex flex-wrap gap-2"><a href="/api/export?format=packets"><Button variant="outline" size="sm">Export all packets JSONL</Button></a><a href="/api/export?format=preferences"><Button variant="outline" size="sm">Export eligible preference pairs JSONL</Button></a><Button variant="ghost" size="sm" onClick={load}>Refresh counts</Button></div>
   </div>;
 }
