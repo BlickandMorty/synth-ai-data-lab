@@ -4,7 +4,7 @@ import { logPacket } from '@/lib/packets/logger';
 export async function POST(req: Request) {
   const startTime = Date.now();
   try {
-    const { prompt, model = 'ollama:llama3.2', experimentId, systemPrompt, temperature = 0.7, executionMode = 'direct' } = await req.json();
+    const { prompt, model = 'ollama:llama3.2', experimentId, systemPrompt, temperature = 0.7, executionMode = 'direct', maxNewTokens = 160 } = await req.json();
 
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json({ success: false, error: 'Prompt is required' }, { status: 400 });
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
           const engineRes = await fetch(`${engineUrl}/v1/run`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: modelName || 'llama3.2', provider: providerType, prompt, system_prompt: systemPrompt, temperature }),
+            body: JSON.stringify({ model: modelName || 'llama3.2', provider: providerType, prompt, system_prompt: systemPrompt, temperature, max_new_tokens: maxNewTokens }),
             signal: AbortSignal.timeout(90000),
           });
           if (!engineRes.ok) throw new Error(`Python engine returned ${engineRes.status}`);
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
           const ollamaRes = await fetch(`${ollamaBaseUrl}/api/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: modelName || 'llama3.2', prompt, system: systemPrompt, stream: false, options: { temperature } }),
+            body: JSON.stringify({ model: modelName || 'llama3.2', prompt, system: systemPrompt, stream: false, options: { temperature, num_predict: Math.min(Math.max(Number(maxNewTokens) || 160, 1), 512) } }),
             signal: AbortSignal.timeout(60000),
           });
           if (!ollamaRes.ok) throw new Error(`Ollama returned ${ollamaRes.status}`);

@@ -13,6 +13,7 @@ service and it does not claim to update model weights.
 - Export raw packets or human-reviewed, non-simulator preference pairs as JSONL.
 - Use the local Python FastAPI engine for Ollama runs with explicit engine provenance.
 - Run a small CPU-friendly open Transformers model (`SmolLM2 135M`) through the engine.
+- Run a bounded, sequential comparison between local Ollama and Transformers targets under one experiment.
 
 ## Evidence checked locally on 2026-08-31
 
@@ -20,6 +21,8 @@ service and it does not claim to update model weights.
 - A real Qwen3 4B completion was returned through the application in about 8 seconds.
 - A real SmolLM2 135M Transformers completion was returned through the Python
   engine and then through the web packet route.
+- A mixed-provider comparison produced two non-simulator completion packets:
+  Qwen3 through Ollama and SmolLM2 through the Python Transformers adapter.
 - A human preference pair made from two real local completions exported as
   `synth.preference.v1` and did not include simulator output.
 

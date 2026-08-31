@@ -11,6 +11,7 @@ It is built for the work between "I ran a prompt" and "I have data I can trust e
 - Gives each packet a UAS-style address: `kind / content digest / source family / revision`.
 - Adds an integrity digest so a review can identify the exact record it refers to.
 - Supports a side-by-side annotation flow with rubric scores, preference choice, flaw tags, and written justification.
+- Runs a bounded, sequential two-model comparison under one experiment journal, including Ollama ↔ Transformers comparisons on this CPU machine.
 - Groups records into experiment journals so a personal model-internals, scientific-reasoning, UAS, or security exercise can be replayed instead of becoming a loose folder of screenshots.
 
 ## What V1 does not claim
@@ -62,6 +63,7 @@ This lets a prompt, model output, annotation, search query, or future transforme
 
 - `/` - dashboard
 - `/lab` - run and log a local model prompt
+- `/api/compare` - sequentially run the same prompt across two to four selected local targets
 - `/annotate` - compare outputs and save a review
 - `/packets` - inspect packet addresses, content, and integrity digests
 - `/experiments` - create and view replayable experiment journals

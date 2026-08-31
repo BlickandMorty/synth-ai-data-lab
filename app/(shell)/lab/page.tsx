@@ -27,6 +27,8 @@ import Link from 'next/link';
 export default function DataLabPage() {
   const [selectedModel, setSelectedModel] = useState(AVAILABLE_MODELS[0].id);
   const [executionMode, setExecutionMode] = useState<'direct' | 'python'>('direct');
+  const [comparisonMode, setComparisonMode] = useState(false);
+  const [comparisonModel, setComparisonModel] = useState('transformers:HuggingFaceTB/SmolLM2-135M-Instruct');
   const [prompt, setPrompt] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('You are an expert scientific AI evaluator and reasoning model.');
   const [temperature, setTemperature] = useState(0.7);
@@ -66,10 +68,18 @@ export default function DataLabPage() {
     setCurrentPacket(null);
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetch(comparisonMode ? '/api/compare' : '/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify(comparisonMode ? {
+          prompt,
+          models: [selectedModel, comparisonModel],
+          systemPrompt: showAdvanced ? systemPrompt : undefined,
+          temperature,
+          experimentId: experimentId || undefined,
+          executionMode,
+          maxNewTokens: comparisonMode ? 96 : 160,
+        } : {
           prompt,
           model: selectedModel,
           systemPrompt: showAdvanced ? systemPrompt : undefined,
@@ -80,7 +90,11 @@ export default function DataLabPage() {
       });
 
       const data = await res.json();
-      if (data.success) {
+      if (data.success && comparisonMode) {
+        const results = data.comparison.results || [];
+        setOutput(results.map((result: { packet?: DataPacket; output?: string }) => `### ${result.packet?.model || 'model'}\n\n${result.output || ''}`).join('\n\n---\n\n'));
+        setCurrentPacket(results[0]?.packet || null);
+      } else if (data.success) {
         setOutput(data.output);
         setCurrentPacket(data.packet);
       } else {
@@ -169,6 +183,16 @@ export default function DataLabPage() {
                   <option value="python">Python research engine — reproducible engine provenance</option>
                 </select>
                 <p className="text-[10px] text-muted-foreground mt-1">The Python route uses the local FastAPI engine on port 8020. Both stay on this machine.</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-secondary/20 p-3 space-y-2">
+                <label className="flex items-center gap-2 text-xs font-mono text-foreground cursor-pointer">
+                  <input type="checkbox" checked={comparisonMode} onChange={(e) => setComparisonMode(e.target.checked)} className="accent-[#C4956A]" />
+                  Comparison run — same prompt, two logged model outputs
+                </label>
+                {comparisonMode && <select value={comparisonModel} onChange={(e) => setComparisonModel(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs">
+                  {AVAILABLE_MODELS.filter((model) => model.id !== selectedModel).map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
+                </select>}
+                {comparisonMode && <p className="text-[10px] text-muted-foreground">Runs are deliberately sequential and capped at 96 new tokens on this CPU machine. Choose Python when comparing against the Transformers model, then open Annotation Studio to make a human preference decision.</p>}
               </div>
               <div>
                 <label className="text-xs font-mono text-muted-foreground block mb-1">Experiment journal (optional)</label>
@@ -265,12 +289,12 @@ export default function DataLabPage() {
                   {loading ? (
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      Running Inference...
+                      {comparisonMode ? 'Running Comparison...' : 'Running Inference...'}
                     </>
                   ) : (
                     <>
                       <Play className="w-3.5 h-3.5 fill-current" />
-                      Execute & Log Packet
+                      {comparisonMode ? 'Compare & Log Packets' : 'Execute & Log Packet'}
                     </>
                   )}
                 </Button>
