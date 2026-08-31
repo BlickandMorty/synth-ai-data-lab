@@ -64,7 +64,7 @@ export default function DashboardPage() {
           SYNTH INTELLIGENCE LAB
         </h1>
         <p className="text-muted-foreground text-sm max-w-2xl leading-relaxed">
-          High-nuance post-training platform and experimental canvas. Run local transformers, log every query and prompt as structured data packets, and curate fine-grained preference pairs for reinforcement learning.
+          A local AI data and evaluation canvas. Run local models, preserve prompts and completions as linked packets, and turn human review into careful preference data for later research or post-training.
         </p>
       </div>
 
@@ -72,14 +72,14 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-card/50 backdrop-blur-sm border-border/60">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-mono uppercase">Logged Packets</CardDescription>
+            <CardDescription className="text-xs font-mono uppercase">Recent Packets</CardDescription>
             <CardTitle className="text-2xl font-bold font-mono text-foreground">
               {loading ? '...' : packets.length}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground flex items-center gap-1">
             <Database className="w-3.5 h-3.5 text-[#C4956A]" />
-            Indexed in local SQLite ledger
+            Latest eight from the local SQLite ledger
           </CardContent>
         </Card>
 
@@ -92,7 +92,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground flex items-center gap-1">
             <BookOpen className="w-3.5 h-3.5 text-[#C4956A]" />
-            Interpretability & Bioactivity
+            User-created experiment journals
           </CardContent>
         </Card>
 
@@ -111,14 +111,14 @@ export default function DashboardPage() {
 
         <Card className="bg-card/50 backdrop-blur-sm border-border/60">
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-mono uppercase">Tokens Processed</CardDescription>
+            <CardDescription className="text-xs font-mono uppercase">Recent Tokens Logged</CardDescription>
             <CardTitle className="text-2xl font-bold font-mono text-foreground">
               {loading ? '...' : totalTokensLogged}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground flex items-center gap-1">
             <Cpu className="w-3.5 h-3.5 text-[#C4956A]" />
-            Telemetry verified
+            Based on the displayed recent packets
           </CardContent>
         </Card>
       </div>

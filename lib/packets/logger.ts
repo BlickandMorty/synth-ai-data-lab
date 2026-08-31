@@ -63,7 +63,11 @@ export async function logPacket(packetData: Omit<DataPacket, 'id' | 'createdAt'>
     const exp = db.select().from(experiments).where(eq(experiments.id, newPacket.experimentId)).get();
     if (exp) {
       db.update(experiments)
-        .set({ packetCount: exp.packetCount + 1, updatedAt: Date.now() })
+        .set({
+          packetCount: exp.packetCount + 1,
+          runCount: exp.runCount + (newPacket.type === 'prompt' ? 1 : 0),
+          updatedAt: Date.now(),
+        })
         .where(eq(experiments.id, newPacket.experimentId))
         .run();
     }
