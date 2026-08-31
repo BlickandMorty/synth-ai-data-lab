@@ -100,6 +100,34 @@ export function getAllPackets(limit = 100): DataPacket[] {
   }));
 }
 
+export function getPacketsForExperiment(experimentId: string, limit = 500): DataPacket[] {
+  const rows = db.select().from(packets)
+    .where(eq(packets.experimentId, experimentId))
+    .orderBy(desc(packets.createdAt))
+    .limit(limit)
+    .all();
+  return rows.map(r => ({
+    id: r.id,
+    runId: r.runId || undefined,
+    experimentId: r.experimentId || undefined,
+    type: r.type as any,
+    source: r.source as any,
+    model: r.model,
+    provider: r.provider as any,
+    input: safeParse(r.input),
+    output: r.output ? safeParse(r.output) : undefined,
+    metadata: r.metadata ? safeParse(r.metadata) : undefined,
+    tokens: r.tokens ? safeParse(r.tokens) : undefined,
+    latency: r.latency ? safeParse(r.latency) : undefined,
+    address: r.address ? safeParse(r.address) : undefined,
+    integrityHash: r.integrityHash || undefined,
+    parentPacketId: r.parentPacketId || undefined,
+    schemaVersion: r.schemaVersion || 1,
+    tags: safeParse(r.tags) || [],
+    createdAt: r.createdAt,
+  }));
+}
+
 export function getPacketById(id: string): (DataPacket & { annotations?: PacketAnnotation[] }) | null {
   const row = db.select().from(packets).where(eq(packets.id, id)).get();
   if (!row) return null;

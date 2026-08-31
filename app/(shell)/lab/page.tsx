@@ -44,6 +44,11 @@ export default function DataLabPage() {
       .then((res) => res.json())
       .then((data) => setExperiments(data.experiments || []))
       .catch(() => setExperiments([]));
+    const replayParams = new URLSearchParams(window.location.search);
+    const replayPrompt = replayParams.get('prompt');
+    const replayExperimentId = replayParams.get('experimentId');
+    if (replayPrompt) setPrompt(replayPrompt);
+    if (replayExperimentId) setExperimentId(replayExperimentId);
   }, []);
 
   const presets = [

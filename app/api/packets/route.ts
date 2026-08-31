@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getAllPackets, logPacket } from '@/lib/packets/logger';
+import { getAllPackets, getPacketsForExperiment, logPacket } from '@/lib/packets/logger';
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get('limit') || '100', 10);
-    const packets = getAllPackets(limit);
+    const experimentId = searchParams.get('experimentId');
+    const packets = experimentId ? getPacketsForExperiment(experimentId, limit) : getAllPackets(limit);
     return NextResponse.json({ success: true, packets });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
