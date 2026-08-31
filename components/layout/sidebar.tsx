@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   Cpu,
   Database,
+  ClipboardCheck,
   Sparkles
 } from 'lucide-react';
 
@@ -20,6 +21,7 @@ const navigation = [
   { name: 'Data Lab', href: '/lab', icon: FlaskConical },
   { name: 'Annotation Studio', href: '/annotate', icon: Tag },
   { name: 'Packet Explorer', href: '/packets', icon: Layers },
+  { name: 'Dataset Review', href: '/datasets', icon: ClipboardCheck },
   { name: 'Experiment Journal', href: '/experiments', icon: BookOpen },
   { name: 'Model & System Settings', href: '/settings', icon: Settings },
 ];

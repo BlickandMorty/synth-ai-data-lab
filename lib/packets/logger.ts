@@ -316,6 +316,32 @@ export function exportPreferencePairsAsJsonl(): string {
   return records.join('\n');
 }
 
+export function getDatasetSummary() {
+  const allPackets = getAllPackets(10000);
+  const annotationRows = db.select().from(annotations).all();
+  const realCompletions = allPackets.filter((packet) => packet.type === 'completion' && packet.provider !== 'simulator');
+  const simulatorPackets = allPackets.filter((packet) => packet.provider === 'simulator');
+  const typeCounts = allPackets.reduce<Record<string, number>>((counts, packet) => {
+    counts[packet.type] = (counts[packet.type] || 0) + 1;
+    return counts;
+  }, {});
+  const providerCounts = allPackets.reduce<Record<string, number>>((counts, packet) => {
+    counts[packet.provider] = (counts[packet.provider] || 0) + 1;
+    return counts;
+  }, {});
+  const preferencePairs = exportPreferencePairsAsJsonl().split('\n').filter(Boolean).length;
+  return {
+    totalPackets: allPackets.length,
+    realCompletions: realCompletions.length,
+    simulatorPackets: simulatorPackets.length,
+    annotations: annotationRows.length,
+    eligiblePreferencePairs: preferencePairs,
+    typeCounts,
+    providerCounts,
+    note: 'Eligible preference pairs exclude simulator output and require matching real completion packets.',
+  };
+}
+
 export function seedDemoDataIfEmpty() {
   const existingExp = db.select().from(experiments).all();
   if (existingExp.length > 0) return;
