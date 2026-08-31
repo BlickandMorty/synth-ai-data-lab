@@ -61,6 +61,8 @@ This lets a prompt, model output, annotation, search query, or future transforme
 
 For the full technology and research decision, see [Architecture](docs/ARCHITECTURE.md).
 
+For the guarded DPO preparation and training workflow, see [Training](docs/TRAINING.md).
+
 ## V1 routes
 
 - `/` - dashboard
