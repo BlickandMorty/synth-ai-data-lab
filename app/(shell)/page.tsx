@@ -19,6 +19,7 @@ import {
   Clock
 } from 'lucide-react';
 import { DataPacket, Experiment } from '@/lib/packets/types';
+import { CANON_RESEARCH_PROJECTS } from '@/lib/research/catalog';
 import { formatDuration } from '@/lib/utils';
 
 export default function DashboardPage() {
@@ -223,6 +224,11 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      <section className="space-y-4">
+        <div><h2 className="text-base font-semibold flex items-center gap-2"><Layers className="w-4 h-4 text-[#C4956A]" /> Canon research map</h2><p className="text-xs text-muted-foreground mt-1">The small set of projects SYNTH connects. Each stays honest about its role and level of maturity.</p></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{CANON_RESEARCH_PROJECTS.map((project) => <a key={project.name} href={project.url} target="_blank" rel="noreferrer" className="rounded-xl border border-border/60 bg-card/40 p-4 hover:border-[#C4956A]/50 transition-colors"><div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-semibold">{project.name}</h3><p className="text-[10px] font-mono text-[#C4956A] mt-1">{project.role}</p></div><Badge variant="purple" className="text-[9px] font-mono shrink-0">{project.status}</Badge></div><p className="text-xs text-muted-foreground leading-relaxed mt-3">{project.description}</p></a>)}</div>
+      </section>
     </div>
   );
 }
